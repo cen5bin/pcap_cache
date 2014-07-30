@@ -43,3 +43,10 @@ int memcached_get_value(char *key, size_t key_len, char **value, size_t *value_l
 		return 0;
 	return -1;
 }
+
+int memcached_key_exist(char *key, size_t key_len)
+{
+	if (memcached_exist(memc, key, key_len) == MEMCACHED_SUCCESS)
+		return 0;
+	return -1;
+}

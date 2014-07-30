@@ -126,8 +126,6 @@ int main(int argc, char *argv[])
 		int protocol = ip_hdr->protocol; 
 		if (protocol == IP_TYPE_TCP)
 		{
-		printf("eth len %d\n", pktHeader->caplen);
-		printf("ip len %d\n", ip_data_len);
 			u_int32_t srcip = ntohl(ip_hdr->saddr);//get_pkt_srcip(ip_data);
 			u_int32_t destip = ntohl(ip_hdr->daddr);//get_pkt_destip(ip_data);	
 			u_char *tcp_data = NULL;
@@ -140,9 +138,6 @@ int main(int argc, char *argv[])
 			int content_len = 0;
 			get_content(tcp_data, tcp_len, &content, &content_len);
 			printf("%d\n", content_len);
-		//	for (int i = 0; i < content_len; i++)
-		//		printf("%c ", content[i]);
-			//content[content_len] = '\0';
 			puts(content);
 		}
 		else if (protocol == IP_TYPE_UDP)
