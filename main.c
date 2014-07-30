@@ -4,6 +4,7 @@
 #include <pcap.h>
 #include <inttypes.h>
 #include <netinet/in.h>
+#include "memc_connector.h"
 
 
 //struct compact_ip_hdr aaa;
@@ -78,6 +79,16 @@ void get_content(u_char *data, int len, char **content, int *content_len);
 
 int main(int argc, char *argv[])
 {
+#if 0
+	char *key = "aaa";
+	char *value = "zzz";
+	memcached_set_value(key, strlen(key), value, strlen(value), 0);
+	uint32_t flag = 0;
+	char *s = NULL;
+	size_t len = 0;
+	memcached_get_value(key, strlen(key), &s, &len, &flag);
+	printf("value %s len %ld flag %d\n", s, len, flag);
+#endif
 	if (argc < 2)
 	{
 		puts("please input a filename!");

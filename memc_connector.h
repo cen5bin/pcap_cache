@@ -2,7 +2,7 @@
 
 #include <libmemcached/memcached.h>
 
-void memcached_connect_to_server(char *hostname, int port);
+int memcached_connect_to_server(char *hostname, int port);
 
 //返回0表示成功，-1表示失败
 int memcached_set_value(char *key, size_t key_len, char *value, size_t value_len, uint32_t flag);
