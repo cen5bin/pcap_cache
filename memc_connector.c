@@ -30,6 +30,7 @@ int memcached_set_value(char *key, size_t key_len, char *value, size_t value_len
 		return 0;
 	return -1;
 }
+
 int memcached_get_value(char *key, size_t key_len, char **value, size_t *value_len, uint32_t *flag) 
 {
 	if (memcached_connected == -1)
@@ -39,6 +40,20 @@ int memcached_get_value(char *key, size_t key_len, char **value, size_t *value_l
 	}
 	memcached_return rc;
 	*value = memcached_get(memc, key,key_len, value_len, flag, &rc);
+	if (rc == MEMCACHED_SUCCESS)
+		return 0;
+	return -1;
+}
+
+int memcached_append_value(char *key, size_t key_len, char *value, size_t value_len, uint32_t flag)
+{
+	if (memcached_connected == -1)
+	{
+		if (memcached_connect_to_server("localhost", 11211) == -1)
+			return -1;
+	}
+	memcached_return rc;
+	rc = memcached_append(memc, key, key_len, value, value_len, 0, flag);
 	if (rc == MEMCACHED_SUCCESS)
 		return 0;
 	return -1;
