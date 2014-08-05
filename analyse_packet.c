@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <netinet/in.h>
 #include "memc_connector.h"
+#include "ac_automation.h"
 
 #define PKT_TYPE_IP 0x0800
 #define IP_TYPE_TCP 6
@@ -45,6 +46,12 @@ struct compact_tcp_hdr {
 };
 #pragma pack()
 
+
+int before_analyse()
+{
+	return 0;
+}
+
 //以太网帧协议类型
 int get_pkt_type(u_char *data)
 {
@@ -81,16 +88,41 @@ char* cal_key(uint32_t src_ip, uint16_t src_port,  uint32_t dest_ip, uint16_t de
 {
 	static const int BUFFER_MAX_SIZE = 128;
 	static char buffer[BUFFER_MAX_SIZE];
-	snprintf(buffer, sizeof(char)*BUFFER_MAX_SIZE, "%u:%d %u:%d", src_ip, src_port, dest_ip, dest_port);
+	uint32_t ip1, ip2;
+	uint16_t port1, port2;
+	if (src_ip > dest_ip)
+		ip1 = src_ip, ip2 = dest_ip, port1 = src_port, port2 = dest_port;
+	else if (src_ip < dest_ip)
+		ip2 = src_ip, ip1 = dest_ip, port2 = src_port, port1 = dest_port;
+	else if (src_port >= dest_port)
+		ip1 = src_ip, ip2 = dest_ip, port1 = src_port, port2 = dest_port;
+	snprintf(buffer, sizeof(char)*BUFFER_MAX_SIZE, "%u:%d#%u:%d", src_ip, src_port, dest_ip, dest_port);
 	return buffer;
 }
 
-//返回值 -1表示不是ip协议，0表示tcp协议且已经识别，1表示tcp协议但尚未识别，2表示udp协议
+#ifdef TEST
+static pcap_dumper_t *dumper[3] = {NULL, NULL, NULL};
+void write_to_pcap_file(int type, struct pcap_pkthdr *header, u_char *data)
+{
+	if (dumper[type+1] == NULL)
+	{
+		char *filename = "";
+		if (type == -1) filename = "notTCP.pcap";
+		else if (type == 0) filename = "unknowTCP.pcap";
+		else if (type == 1) filename = "knowTCP.pcap";
+		pcap_t *p = pcap_open_dead(DLT_EN10MB, 65536);
+		dumper[type+1] = pcap_dump_open(p, filename);
+	}
+	pcap_dump((u_char *)dumper[type+1], header, data);
+}
+#endif 
+
+//返回值 -2表示不是ip协议，-1表示非tcp，包括udp等， 0表示tcp协议但是上层unknow，1表示tcp协议并且上层已经识别出协议
 int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 {
 	int eth_type = get_pkt_type(data);
 	if (eth_type != PKT_TYPE_IP) 
-		return -1;
+		return -2;
 
 	u_char *ip_data = NULL;
 	int ip_data_len = 0;
@@ -98,10 +130,12 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 	struct compact_ip_hdr *ip_hdr = (struct compact_ip_hdr *)ip_data;
 
 	int protocol = ip_hdr->protocol; 
-	if (protocol == IP_TYPE_UDP)
-		return 2;
-	if (protocol != IP_TYPE_TCP)
+	if (protocol != IP_TYPE_TCP) {
+#ifdef TEST
+		write_to_pcap_file(-1, header, data);	
+#endif
 		return -1;
+	}
 	u_int32_t src_ip = ntohl(ip_hdr->saddr);
 	u_int32_t dest_ip = ntohl(ip_hdr->daddr);	
 
@@ -111,22 +145,54 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 	struct compact_tcp_hdr *tcp_hdr = (struct compact_tcp_hdr *)tcp_data;
 	u_int16_t src_port = ntohs(tcp_hdr->src_port);
 	u_int16_t dest_port = ntohs(tcp_hdr->dest_port);
-
 	char *key = cal_key(src_ip, src_port, dest_ip, dest_port);
-	if (memcached_key_exist(key, strlen(key)))
+	if (memcached_key_exist(key, strlen(key)) == 0)
 	{
+		size_t len = 0;
+		char *value = NULL;
+		uint32_t flag = 0;
+		int ret	= memcached_get_value(key, strlen(key), &value, &len, &flag);
+		if (ret == -1) return -2;
+		int type = *(int *)value;
+		if (type == 1) 
+		{
+#ifdef TEST
+			write_to_pcap_file(1, header, data);
+#endif
+			return 1;
+		}
+		else if (type == 0)
+		{
+			memcached_append_value(key, strlen(key), (char *)data, header->caplen, 0);
+#ifdef TEST
+			write_to_pcap_file(0, header, data);
+#endif
+			return 0;
+		}
+		return -2;
 	}
 	else 			
 	{
-		key = cal_key(dest_ip, dest_port, src_ip, src_port);
-		if (memcached_key_exist(key, strlen(key)))
+		int type = 0;
+		if (src_port == 80 || dest_port == 80)	
+			type = 1;
+		memcached_set_value(key, strlen(key), (char *)&type, sizeof(type), 0);
+		if (type == 0) 
 		{
+			memcached_append_value(key, strlen(key), (char *)data, header->caplen, 0);
+#ifdef TEST
+			write_to_pcap_file(0, header, data);
+#endif
 		}
 		else 
 		{
+#ifdef TEST
+			write_to_pcap_file(1, header, data);
+#endif
 		}
+		return 0;
 	}
-
+	return 0;
 	char *content = NULL;
 	int content_len = 0;
 	get_content(tcp_data, tcp_len, &content, &content_len);

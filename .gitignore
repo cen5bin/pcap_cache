@@ -3,3 +3,6 @@
 *.swp
 *.out
 test*
+.DS_*
+*.pcap
+*.dylib

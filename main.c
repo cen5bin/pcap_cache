@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include "memc_connector.h"
 #include "analyse_packet.h"
+#include "ac_automation.h"
 
 
 
@@ -32,9 +33,20 @@ int main(int argc, char *argv[])
 	{
 		status = pcap_next_ex(handle, &pktHeader, &data);
 		if (status != 1) break;
-		analyse_packet(pktHeader, data);
+		int ret = analyse_packet(pktHeader, data);
+		if (ret == -2)
+			puts("ignore");
+		else if (ret == -1)
+			puts("not tcp");
+		else if (ret == 0)
+			puts("tcp unknow");
+		else if (ret == 1)
+			puts("tcp know");
 	}while (status==1);
-	
+#ifdef TEST	
+	for (int i = 0; i < 3; i++)
+	pcap_dump_close(dumper[i]);
+#endif
 	return 0;
 }
 

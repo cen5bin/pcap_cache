@@ -21,7 +21,7 @@ int memcached_set_value(char *key, size_t key_len, char *value, size_t value_len
 {
 	if (memcached_connected == -1)
 	{
-		if (memcached_connect_to_server("localhost", 11211) == -1)
+		if (memcached_connect_to_server("127.0.0.1", 11211) == -1)
 			return -1;
 	}
 	memcached_return rc;
@@ -35,7 +35,7 @@ int memcached_get_value(char *key, size_t key_len, char **value, size_t *value_l
 {
 	if (memcached_connected == -1)
 	{
-		if (memcached_connect_to_server("localhost", 11211) == -1)
+		if (memcached_connect_to_server("127.0.0.1", 11211) == -1)
 			return -1;
 	}
 	memcached_return rc;
@@ -49,7 +49,7 @@ int memcached_append_value(char *key, size_t key_len, char *value, size_t value_
 {
 	if (memcached_connected == -1)
 	{
-		if (memcached_connect_to_server("localhost", 11211) == -1)
+		if (memcached_connect_to_server("127.0.0.1", 11211) == -1)
 			return -1;
 	}
 	memcached_return rc;
