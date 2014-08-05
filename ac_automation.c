@@ -97,3 +97,31 @@ int query(char *s, node *root)
      return ret;
 }
 
+void destory(node *p)
+{
+	if (!p) return;
+	for (int i = 0; i < kind; i++)
+		destory(p->next[i]);
+	delete p;
+}
+
+
+node *root;
+
+void init_ac_automation(char *keys[], int size)
+{
+	root = new node();
+	for (int i = 0; i < size; i++)
+		insert(keys[i], root);
+	build_ac_automation(root);
+}
+
+int query_string(char *s)
+{
+	return query(s, root);
+}
+
+void destroy_ac_automation()
+{
+	destory(root);
+}

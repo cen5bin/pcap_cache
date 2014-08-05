@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include "memc_connector.h"
 #include "ac_automation.h"
+#include "port_define.h"
 
 #define PKT_TYPE_IP 0x0800
 #define IP_TYPE_TCP 6
@@ -49,6 +50,7 @@ struct compact_tcp_hdr {
 
 int before_analyse()
 {
+	init_ac_automation(NULL, 0);
 	return 0;
 }
 
