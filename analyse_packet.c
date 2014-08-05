@@ -103,7 +103,7 @@ void get_content(u_char *data, int len, char **content, int *content_len)
 char* cal_key(uint32_t src_ip, uint16_t src_port,  uint32_t dest_ip, uint16_t dest_port)
 {
 	static const int BUFFER_MAX_SIZE = 128;
-	static char buffer[BUFFER_MAX_SIZE];
+	static char buffer[128];
 	uint32_t ip1, ip2;
 	uint16_t port1, port2;
 	if (src_ip > dest_ip)
@@ -112,7 +112,7 @@ char* cal_key(uint32_t src_ip, uint16_t src_port,  uint32_t dest_ip, uint16_t de
 		ip2 = src_ip, ip1 = dest_ip, port2 = src_port, port1 = dest_port;
 	else if (src_port >= dest_port)
 		ip1 = src_ip, ip2 = dest_ip, port1 = src_port, port2 = dest_port;
-	snprintf(buffer, sizeof(char)*BUFFER_MAX_SIZE, "%u:%d#%u:%d", src_ip, src_port, dest_ip, dest_port);
+	snprintf(buffer, sizeof(char)*BUFFER_MAX_SIZE, "%u:%d#%u:%d", ip1, port1, ip2, port2);
 	return buffer;
 }
 
@@ -197,9 +197,9 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 
 	//如果端口为标准端口，就可以直接返回类型
 	int ret = analyse_packet_by_port(src_port, 0);
-	if (ret != -1) return ret;
+	if (ret != -1) 	return ret;
 	ret = analyse_packet_by_port(dest_port, 0);
-	if (ret != -1) return ret;
+	if (ret != -1) 	return ret;
 
 	u_int32_t src_ip = ntohl(ip_hdr->saddr);
 	u_int32_t dest_ip = ntohl(ip_hdr->daddr);	
@@ -261,7 +261,7 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 			write_to_pcap_file(1, header, data);
 #endif
 		}
-		return 0;
+		return type;
 	}
 	return 0;
 }

@@ -6,3 +6,5 @@ test*
 .DS_*
 *.pcap
 *.dylib
+*.so
+tmp*

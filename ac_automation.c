@@ -2,7 +2,7 @@
 #include <string.h>
 #include "ac_automation.h"
 
-const int kind = 26;  //字母数量
+const int kind = 256;  //字母数量
 const int MAX_SIZE = 500010; //节点最大数
 const int KEYWORD_MAX_LEN = 55; //单词最大长度
 const int INPUT_MAX_LEN = 1000010; //输入的字符串的最大长度
@@ -31,7 +31,7 @@ void insert(char *s, node *root)
      int i = 0;
      while (s[i])
      {
-          int index = s[i] - 'a';
+          int index = (unsigned char)s[i];
           if (p->next[index] == NULL) p->next[index] = new node();
           p = p->next[index];
           i++;
@@ -79,7 +79,7 @@ int query(char *s, node *root)
      int i = 0;
      while (s[i])
      {
-          int index = s[i] - 'a';
+          int index = (unsigned char)s[i];
           while (p->next[index] == NULL && p != root) p = p->fail;
           p = p->next[index];
           if (p == NULL) p = root;
@@ -112,10 +112,12 @@ node *root;
 
 void init_ac_automation(char *keys[], int size)
 {
+//	puts("init_ac_automation in");
 	root = new node();
 	for (int i = 0; i < size; i++)
 		insert(keys[i], root);
 	build_ac_automation(root);
+//	puts("init_ac_automation out");
 }
 
 int query_string(char *s)

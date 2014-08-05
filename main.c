@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 		int ret = analyse_packet(pktHeader, data);
 		if (ret == -21)
 			puts("ignore");
-		else if (ret == -1)
+		else if (ret == -11)
 			puts("not tcp");
 		else if (ret == 0)
 			puts("tcp unknow");
