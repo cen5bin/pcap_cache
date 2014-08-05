@@ -10,4 +10,5 @@
 #define IMAP_PORT 143
 #define POP3_PORT 110
 #define SMTP_PORT 25
+#define HTTP_PORT 80
 #endif

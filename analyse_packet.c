@@ -57,7 +57,8 @@ struct compact_udp_hdr {
 
 int before_analyse()
 {
-	init_ac_automation(NULL, 0);
+	char *keys[] = {"GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "OPTIONS", "CONNECT"};
+	init_ac_automation(keys, 8);
 	return 0;
 }
 
@@ -73,7 +74,6 @@ void get_ip_pkt(u_char *data, int len, u_char **ip_data, int *ip_data_len)
 	*ip_data_len = ip_pkt_len;
 	*ip_data = data+6*2+2;;
 }
-
 
 void get_tcp_pkt(u_char *ip_data, int len, u_char **tcp_data, int *tcp_len)
 {
@@ -139,6 +139,8 @@ int analyse_packet_by_port(uint16_t port, int isUDP)
 		return P_DNS_TCP;
 	if (isUDP && port == DNS_TCP_PORT)
 		return P_DNS_UDP;
+	if (port == HTTP_PORT)
+		return P_HTTP;
 	if (port == FTP_PORT)
 		return P_FTP;
 	if (port == IMAP_PORT)
@@ -162,6 +164,7 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 	get_ip_pkt(data, header->caplen, &ip_data, &ip_data_len);
 	struct compact_ip_hdr *ip_hdr = (struct compact_ip_hdr *)ip_data;
 
+	//非tcp的数据包在此处理
 	int protocol = ip_hdr->protocol; 
 	if (protocol != IP_TYPE_TCP) 
 	{
@@ -183,34 +186,45 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 #endif
 		return -1;
 	}
-	u_int32_t src_ip = ntohl(ip_hdr->saddr);
-	u_int32_t dest_ip = ntohl(ip_hdr->daddr);	
 
+	//TCP的数据包在此处理
 	u_char *tcp_data = NULL;
 	int tcp_len = 0;
 	get_tcp_pkt(ip_data, ip_data_len, &tcp_data, &tcp_len);
 	struct compact_tcp_hdr *tcp_hdr = (struct compact_tcp_hdr *)tcp_data;
 	u_int16_t src_port = ntohs(tcp_hdr->src_port);
 	u_int16_t dest_port = ntohs(tcp_hdr->dest_port);
+
+	//如果端口为标准端口，就可以直接返回类型
+	int ret = analyse_packet_by_port(src_port, 0);
+	if (ret != -1) return ret;
+	ret = analyse_packet_by_port(dest_port, 0);
+	if (ret != -1) return ret;
+
+	u_int32_t src_ip = ntohl(ip_hdr->saddr);
+	u_int32_t dest_ip = ntohl(ip_hdr->daddr);	
+
 	char *key = cal_key(src_ip, src_port, dest_ip, dest_port);
 	if (memcached_key_exist(key, strlen(key)) == 0)
 	{
+		//memcache中该四元组已经存在，则直接返回识别结果
 		size_t len = 0;
 		char *value = NULL;
 		uint32_t flag = 0;
 		int ret	= memcached_get_value(key, strlen(key), &value, &len, &flag);
 		if (ret == -1) return -2;
 		int type = *(int *)value;
-		if (type == 1) 
+		if (type != 0) 
 		{
 #ifdef TEST
 			write_to_pcap_file(1, header, data);
 #endif
-			return 1;
+			return type;
 		}
 		else if (type == 0)
 		{
-			memcached_append_value(key, strlen(key), (char *)data, header->caplen, 0);
+			//以下注释的代码表示是否需要缓存多个packet
+			//memcached_append_value(key, strlen(key), (char *)data, header->caplen, 0);
 #ifdef TEST
 			write_to_pcap_file(0, header, data);
 #endif
@@ -220,9 +234,19 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 	}
 	else 			
 	{
+		//利用ac自动机来匹配包中的内容
+		static char buffer[2*1024];
+		char *content = NULL;
+		int content_len = 0;
+		get_content(tcp_data, tcp_len, &content, &content_len);
 		int type = 0;
-		if (src_port == 80 || dest_port == 80)	
-			type = 1;
+		if (content_len)
+		{
+			memcpy(buffer, content, content_len*sizeof(char));
+			buffer[content_len] = '\0';
+			int ret = query_string(buffer);
+			if (ret) type = P_HTTP;
+		}
 		memcached_set_value(key, strlen(key), (char *)&type, sizeof(type), 0);
 		if (type == 0) 
 		{

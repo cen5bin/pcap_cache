@@ -7,6 +7,7 @@
 #include "memc_connector.h"
 #include "analyse_packet.h"
 #include "ac_automation.h"
+#include "protocol_define.h"
 
 
 
@@ -29,17 +30,32 @@ int main(int argc, char *argv[])
 	struct pcap_pkthdr *pktHeader;
 	u_char *data = NULL;
 	int status;
+	before_analyse();
 	do 
 	{
 		status = pcap_next_ex(handle, &pktHeader, &data);
 		if (status != 1) break;
 		int ret = analyse_packet(pktHeader, data);
-		if (ret == -2)
+		if (ret == -21)
 			puts("ignore");
 		else if (ret == -1)
 			puts("not tcp");
 		else if (ret == 0)
 			puts("tcp unknow");
+		else if (ret == P_HTTP)
+			puts("http");
+		else if (ret == P_FTP)
+			puts("FTP");
+		else if (ret == P_DNS_TCP)
+			puts("DNS_TCP");
+		else if (ret == P_DNS_UDP)
+			puts("DNS_UDP");
+		else if (ret == P_IMAP)
+			puts("IMAP");
+		else if (ret == P_POP3)
+			puts("pop3");
+		else if (ret == P_SMTP)
+			puts("smtp");
 		else if (ret == 1)
 			puts("tcp know");
 	}while (status==1);
