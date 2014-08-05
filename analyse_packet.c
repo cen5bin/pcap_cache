@@ -7,6 +7,7 @@
 #include "memc_connector.h"
 #include "ac_automation.h"
 #include "port_define.h"
+#include "protocol_define.h"
 
 #define PKT_TYPE_IP 0x0800
 #define IP_TYPE_TCP 6
@@ -45,6 +46,12 @@ struct compact_tcp_hdr {
 	u_int16_t urgent_pointer;
 
 };
+struct compact_udp_hdr {
+	uint16_t src_port;
+	uint16_t dest_port;
+	uint16_t len;
+	uint16_t check;
+};
 #pragma pack()
 
 
@@ -76,6 +83,13 @@ void get_tcp_pkt(u_char *ip_data, int len, u_char **tcp_data, int *tcp_len)
 	*tcp_data = ip_data+ip_header_len;
 }
 
+void get_udp_pkt(u_char *ip_data, int len, u_char **udp_data, int *udp_len)
+{
+	int ip_header_len = (ip_data[0] & 0x0F) * 4;
+	int ip_data_len = len - ip_header_len;
+	*udp_len = ip_data_len;
+	*udp_data = ip_data+ip_header_len;
+}
 
 void get_content(u_char *data, int len, char **content, int *content_len) 
 {
@@ -119,7 +133,24 @@ void write_to_pcap_file(int type, struct pcap_pkthdr *header, u_char *data)
 }
 #endif 
 
-//返回值 -2表示不是ip协议，-1表示非tcp，包括udp等， 0表示tcp协议但是上层unknow，1表示tcp协议并且上层已经识别出协议
+int analyse_packet_by_port(uint16_t port, int isUDP)
+{
+	if (!isUDP && port == DNS_TCP_PORT)
+		return P_DNS_TCP;
+	if (isUDP && port == DNS_TCP_PORT)
+		return P_DNS_UDP;
+	if (port == FTP_PORT)
+		return P_FTP;
+	if (port == IMAP_PORT)
+		return P_IMAP;
+	if (port == POP3_PORT)
+		return P_POP3;
+	if (port == SMTP_PORT)
+		return P_SMTP;
+	return -1;
+}
+
+//返回值 -2表示不是ip协议，-1表示非tcp，包括udp等， 0表示tcp协议但是上层unknow，1表示tcp协议并且上层已经识别出协议，详情见protocol_define.h中
 int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 {
 	int eth_type = get_pkt_type(data);
@@ -132,7 +163,21 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 	struct compact_ip_hdr *ip_hdr = (struct compact_ip_hdr *)ip_data;
 
 	int protocol = ip_hdr->protocol; 
-	if (protocol != IP_TYPE_TCP) {
+	if (protocol != IP_TYPE_TCP) 
+	{
+		if (protocol == IP_TYPE_UDP)
+		{
+			u_char *udp_data = NULL;
+			int udp_len = 0;
+			get_udp_pkt(ip_data, ip_data_len, &udp_data, &udp_len);
+			struct compact_udp_hdr *udp_hdr = (struct compact_udp_hdr *)udp_data;
+			u_int16_t src_port = ntohs(udp_hdr->src_port);
+			u_int16_t dest_port = ntohs(udp_hdr->dest_port);
+			int ret = analyse_packet_by_port(src_port, 1);
+			if (ret != -1) return ret;
+			ret = analyse_packet_by_port(dest_port, 1);
+			if (ret != -1) return ret;
+		}
 #ifdef TEST
 		write_to_pcap_file(-1, header, data);	
 #endif
@@ -195,9 +240,4 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 		return 0;
 	}
 	return 0;
-	char *content = NULL;
-	int content_len = 0;
-	get_content(tcp_data, tcp_len, &content, &content_len);
-	printf("%d\n", content_len);
-	puts(content);
 }
