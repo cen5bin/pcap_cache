@@ -40,8 +40,12 @@ int main(int argc, char *argv[])
 			puts("ignore");
 		else if (ret == -11)
 			puts("not tcp");
-		else if (ret == 0)
-			puts("tcp unknow");
+		else if (ret == P_ERROR)
+			puts("error");
+		else if (ret == P_WAIT)
+			puts("wait");
+		else if (ret == P_UNKNOW_TCP)
+			puts("unknow");
 		else if (ret == P_HTTP)
 			puts("http");
 		else if (ret == P_FTP)
