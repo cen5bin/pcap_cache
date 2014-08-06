@@ -74,8 +74,8 @@ void build_ac_automation(node *root)
 int query(char *s, node *root)
 {
      node *p = root;
-     //int ret = 0;
-     int ret = -1;
+     int ret = 0;
+     //int ret = -1;
      int i = 0;
      while (s[i])
      {
@@ -88,10 +88,12 @@ int query(char *s, node *root)
                node *tmp = p;
                while (tmp != root && tmp->count != -1)
                {
-				   return tmp->count;
+				   //printf("yes");
+				   if (tmp->count)
+				   		return tmp->count;
                     //ret += tmp->count;
                     //tmp->count = -1;
-                    //tmp = tmp->fail;
+                    tmp = tmp->fail;
                }
           }
           i++;
