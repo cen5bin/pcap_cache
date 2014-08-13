@@ -139,8 +139,8 @@ int analyse_packet_by_port(uint16_t port, int isUDP)
 		return P_DNS_TCP;
 	if (isUDP && port == DNS_TCP_PORT)
 		return P_DNS_UDP;
-	//if (port == HTTP_PORT)
-	//	return P_HTTP;
+	if (port == HTTP_PORT)
+		return P_HTTP;
 	if (port == FTP_PORT)
 		return P_FTP;
 	if (port == IMAP_PORT)
@@ -242,10 +242,18 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 		char *value = NULL;
 		uint32_t flag = 0;
 		int ret	= memcached_get_value(key, strlen(key), &value, &len, &flag);
-		if (ret == -1) return P_ERROR;
+		if (ret == -1) 
+		{
+			free(value);
+			return P_ERROR;
+		}
 		int type = *(int *)value;
 		if (type == P_WAIT)
-			return analyse_packet_tcp_content(key, 1, tcp_data, tcp_len, header, data);
+		{
+			ret = analyse_packet_tcp_content(key, 1, tcp_data, tcp_len, header, data);
+			free(value);
+			return ret;
+		}
 
 		return type;
 	}
