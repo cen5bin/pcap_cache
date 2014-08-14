@@ -4,9 +4,9 @@
 #include <pcap.h>
 #include <inttypes.h>
 #include <netinet/in.h>
-#include "memc_connector.h"
+//#include "memc_connector.h"
 #include "analyse_packet.h"
-#include "ac_automation.h"
+//#include "ac_automation.h"
 #include "protocol_define.h"
 
 
