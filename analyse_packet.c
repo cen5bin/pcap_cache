@@ -157,15 +157,17 @@ int analyse_packet_tcp_content(char *key, int key_exists, u_char *tcp_data, int 
 {
 	char *content = NULL;
 	int content_len = 0;
+	int key_len = strlen(key);
 	get_content(tcp_data, tcp_len, &content, &content_len);
 	if (content_len == 0)
 	{
 		if (!key_exists)
 		{
 			int type = P_WAIT;
-			memcached_set_value(key, strlen(key), (char *)&type, sizeof(type), 0);
+			memcached_set_value(key, key_len, (char *)&type, sizeof(type), 0);
 		}
-			memcached_append_value(key, strlen(key), (char *)data, header->caplen, 0);
+			memcached_append_value(key, key_len, (char *)header, sizeof(struct pcap_pkthdr), 0);
+			memcached_append_value(key, key_len, (char *)data, header->caplen, 0);
 		return P_WAIT;
 	}
 	else 
@@ -176,9 +178,23 @@ int analyse_packet_tcp_content(char *key, int key_exists, u_char *tcp_data, int 
 		int ret = query_string(buffer);
 		int type = P_UNKNOW_TCP;
 		if (ret)  type = P_HTTP;
-		memcached_set_value(key, strlen(key), (char *)&type, sizeof(type), 0);
+		memcached_set_value(key, key_len, (char *)&type, sizeof(type), 0);
 		return type;
 	}
+}
+
+//将扣留的包都发出去
+void send_cached_packet(char *value, int len, int type)
+{
+	int index = sizeof(int);
+	while (index < len)
+	{
+		struct pcap_pkthdr *header = (struct pcap_pkthdr *)(value+index);
+		index+=sizeof(struct pcap_pkthdr);
+		u_char *data = (u_char *)(value+index);
+		index+=header->caplen;
+		//调发包的接口
+	}	
 }
 
 //返回值 -2表示不是ip协议，-1表示非tcp，包括udp等，0表示还不能确定的情况，可能是三次握手阶段，大于0表示已经对包定性，详情见protocol_define.h中
@@ -251,10 +267,12 @@ int analyse_packet(struct pcap_pkthdr * header, u_char *data)
 		if (type == P_WAIT)
 		{
 			ret = analyse_packet_tcp_content(key, 1, tcp_data, tcp_len, header, data);
+			if (type != P_WAIT)
+;//				send_cached_packet(value, len, type);
 			free(value);
 			return ret;
 		}
-
+		free(value);
 		return type;
 	}
 	else 			
